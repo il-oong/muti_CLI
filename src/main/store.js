@@ -16,6 +16,13 @@ function defaultState() {
 
 function migrate(raw) {
   if (!raw || typeof raw !== 'object') return defaultState();
+  const v = raw.schemaVersion;
+  if (v == null) {
+    return { ...defaultState(), ...raw, schemaVersion: SCHEMA_VERSION };
+  }
+  if (typeof v !== 'number' || v > SCHEMA_VERSION) {
+    throw new Error(`unsupported state schemaVersion: ${v}`);
+  }
   return { ...defaultState(), ...raw, schemaVersion: SCHEMA_VERSION };
 }
 

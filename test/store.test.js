@@ -77,3 +77,23 @@ test('corrupt file is backed up and default returned', () => {
   const backups = fs.readdirSync(dir).filter((n) => n.includes('.broken-'));
   assert.ok(backups.length >= 1, 'expected at least one .broken-* backup');
 });
+
+test('migrate rejects newer schemaVersion', () => {
+  assert.throws(() => migrate({ schemaVersion: SCHEMA_VERSION + 1, projects: [] }));
+  assert.throws(() => migrate({ schemaVersion: 'not-a-number', projects: [] }));
+});
+
+test('newer-version file on disk is backed up and default returned', () => {
+  const fp = tmpStatePath();
+  fs.writeFileSync(
+    fp,
+    JSON.stringify({ schemaVersion: SCHEMA_VERSION + 1, projects: [{ id: 'future' }] }),
+    'utf8'
+  );
+  const s = createStore(fp);
+  const state = s.getState();
+  assert.equal(state.schemaVersion, SCHEMA_VERSION);
+  assert.deepEqual(state.projects, []);
+  const backups = fs.readdirSync(path.dirname(fp)).filter((n) => n.includes('.broken-'));
+  assert.ok(backups.length >= 1, 'expected backup of future-version file');
+});
