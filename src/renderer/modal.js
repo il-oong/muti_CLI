@@ -37,10 +37,10 @@
   function onKey(e) {
     if (e.key === 'Escape') {
       e.preventDefault();
-      close(null);
-    } else if (e.key === 'Enter' && !inputEl.hidden) {
+      close(inputEl.hidden ? false : null);
+    } else if (e.key === 'Enter') {
       e.preventDefault();
-      close(inputEl.value);
+      close(inputEl.hidden ? true : inputEl.value);
     }
   }
 
