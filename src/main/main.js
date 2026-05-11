@@ -71,8 +71,36 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   ptyMgr.killAll();
-  if (store) store.flush();
+  if (store) {
+    store.flush();
+    store.stop();
+  }
 });
+
+function shutdown(signal) {
+  try {
+    ptyMgr.killAll();
+  } catch (_) {
+    /* ignore */
+  }
+  if (store) {
+    try {
+      store.flush();
+    } catch (_) {
+      /* ignore */
+    }
+    try {
+      store.stop();
+    } catch (_) {
+      /* ignore */
+    }
+  }
+  app.exit(signal === 'SIGINT' ? 130 : 0);
+}
+
+for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+  process.on(sig, () => shutdown(sig));
+}
 
 ipcMain.handle('state:get', () => store.getState());
 ipcMain.handle('state:set', (_event, next) => {
