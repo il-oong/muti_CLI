@@ -7,6 +7,7 @@
       content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self';"
     />
     <title>Muti CLI</title>
+    <link rel="stylesheet" href="../../node_modules/xterm/css/xterm.css" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -23,14 +24,22 @@
           <p>프로젝트가 없습니다</p>
           <button id="emptyAddBtn" class="cta-btn" type="button">＋ 새 프로젝트 만들기</button>
         </div>
-        <div id="projectView" class="project-view" hidden>
-          <h2 id="projectViewName"></h2>
-          <p id="projectViewFolder" class="muted"></p>
-          <p class="muted">터미널은 다음 마일스톤(M3)에서 추가됩니다.</p>
+        <div id="projectArea" class="project-area" hidden>
+          <div id="tabbar" class="tabbar">
+            <ul id="tabList" class="tab-list"></ul>
+            <button id="addTabBtn" class="icon-btn" type="button" title="새 터미널 탭">＋</button>
+          </div>
+          <div id="terminals" class="terminals"></div>
+          <div id="noTabs" class="empty-state inset" hidden>
+            <p>터미널 탭이 없습니다</p>
+            <button id="addFirstTabBtn" class="cta-btn" type="button">＋ 새 탭 열기</button>
+          </div>
         </div>
       </main>
     </div>
 
+    <script src="../../node_modules/xterm/lib/xterm.js"></script>
+    <script src="../../node_modules/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
     <script src="modal.js"></script>
     <script src="renderer.js"></script>
   </body>

@@ -3,6 +3,7 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const { createStore } = require('./store');
+const ptyMgr = require('./pty-manager');
 
 let store = null;
 let mainWindow = null;
@@ -62,11 +63,13 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  ptyMgr.killAll();
   if (store) store.flush();
   if (process.platform !== 'darwin') app.quit();
 });
 
 app.on('before-quit', () => {
+  ptyMgr.killAll();
   if (store) store.flush();
 });
 
@@ -84,3 +87,22 @@ ipcMain.handle('dialog:pickFolder', async () => {
   if (res.canceled || res.filePaths.length === 0) return null;
   return res.filePaths[0];
 });
+
+ipcMain.handle('pty:defaultShell', () => ptyMgr.defaultShell());
+
+ipcMain.handle('pty:spawn', (event, opts) => {
+  const wc = event.sender;
+  return ptyMgr.spawn(
+    opts,
+    (data) => {
+      if (!wc.isDestroyed()) wc.send('pty:data', { id: opts.id, data });
+    },
+    (exit) => {
+      if (!wc.isDestroyed()) wc.send('pty:exit', { id: opts.id, ...exit });
+    }
+  );
+});
+
+ipcMain.on('pty:write', (_e, { id, data }) => ptyMgr.write(id, data));
+ipcMain.on('pty:resize', (_e, { id, cols, rows }) => ptyMgr.resize(id, cols, rows));
+ipcMain.on('pty:kill', (_e, { id }) => ptyMgr.kill(id));
