@@ -141,6 +141,19 @@ body {
   position: relative;
   min-width: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.project-area {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.project-area[hidden] {
+  display: none;
 }
 
 .empty-state {
@@ -152,6 +165,91 @@ body {
   justify-content: center;
   gap: 14px;
   color: var(--fg-dim);
+}
+
+.empty-state.inset {
+  position: relative;
+  inset: auto;
+  flex: 1;
+}
+
+.tabbar {
+  display: flex;
+  align-items: center;
+  background: #252526;
+  border-bottom: 1px solid var(--border);
+  padding: 0 6px;
+  min-height: 34px;
+}
+
+.tab-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex: 1;
+  overflow-x: auto;
+}
+
+.tab-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  margin-right: 2px;
+  cursor: pointer;
+  background: var(--bg-elev);
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  max-width: 220px;
+}
+
+.tab-list li.active {
+  background: var(--bg-app);
+  border-color: #3c3c3c;
+}
+
+.tab-list .tname {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+}
+
+.tab-list .close {
+  color: var(--fg-dim);
+  font-size: 12px;
+  padding: 0 4px;
+  border-radius: 3px;
+  user-select: none;
+}
+
+.tab-list .close:hover {
+  background: #444;
+  color: #fff;
+}
+
+.terminals {
+  position: relative;
+  flex: 1;
+  background: var(--bg-app);
+  min-height: 0;
+}
+
+.term-pane {
+  position: absolute;
+  inset: 0;
+  display: none;
+  padding: 4px;
+}
+
+.term-pane.active {
+  display: block;
+}
+
+.term-pane .xterm {
+  height: 100%;
 }
 
 .cta-btn {
@@ -166,20 +264,6 @@ body {
 
 .cta-btn:hover {
   filter: brightness(1.15);
-}
-
-.project-view {
-  padding: 24px 28px;
-}
-
-.project-view h2 {
-  margin: 0 0 4px 0;
-  font-weight: 500;
-}
-
-.muted {
-  color: var(--fg-dim);
-  margin: 0 0 6px 0;
 }
 
 .modal-overlay {
