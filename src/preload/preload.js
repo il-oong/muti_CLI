@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('api', {
   },
   pty: {
     defaultShell: () => ipcRenderer.invoke('pty:defaultShell'),
+    listShells: () => ipcRenderer.invoke('pty:listShells'),
     spawn: (opts) => ipcRenderer.invoke('pty:spawn', opts),
     write: (id, data) => ipcRenderer.send('pty:write', { id, data }),
     resize: (id, cols, rows) => ipcRenderer.send('pty:resize', { id, cols, rows }),

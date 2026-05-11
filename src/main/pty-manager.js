@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const os = require('os');
+const shells = require('./shells');
 
 let pty;
 try {
@@ -26,8 +27,9 @@ function resolveCwd(cwd) {
 }
 
 function spawn(opts, onData, onExit) {
-  const { id, shell, cwd, env, cols, rows } = opts;
-  const shellPath = shell || defaultShell();
+  const { id, shell, shellId, cwd, env, cols, rows } = opts;
+  const shellPath =
+    (shellId && shells.resolveShell(shellId)) || shell || defaultShell();
   const safeCwd = resolveCwd(cwd);
   const proc = pty.spawn(shellPath, [], {
     name: 'xterm-color',

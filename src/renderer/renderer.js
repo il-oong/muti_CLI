@@ -16,6 +16,10 @@ const els = {
   terminals: document.getElementById('terminals'),
   noTabs: document.getElementById('noTabs'),
   addFirstTabBtn: document.getElementById('addFirstTabBtn'),
+  shellPicker: document.getElementById('shellPicker'),
+  shellPickerBtn: document.getElementById('shellPickerBtn'),
+  shellPickerText: document.getElementById('shellPickerText'),
+  shellMenu: document.getElementById('shellMenu'),
 };
 
 const state = {
@@ -24,6 +28,7 @@ const state = {
 };
 
 const liveTerms = new Map();
+let availableShells = [];
 
 function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -56,6 +61,66 @@ function activeTab(project) {
 function render() {
   renderProjects();
   renderProjectArea();
+  renderShellPicker();
+}
+
+function firstAvailableShellId() {
+  const s = availableShells.find((x) => x.available);
+  return s ? s.id : null;
+}
+
+function shellLabel(id) {
+  const s = availableShells.find((x) => x.id === id);
+  return s ? s.label : id || '—';
+}
+
+function renderShellPicker() {
+  const proj = activeProject();
+  if (!proj || availableShells.length === 0) {
+    els.shellPicker.hidden = true;
+    els.shellMenu.hidden = true;
+    return;
+  }
+  els.shellPicker.hidden = false;
+  els.shellPickerText.textContent = shellLabel(proj.defaultShell);
+}
+
+function toggleShellMenu(force) {
+  const proj = activeProject();
+  if (!proj) return;
+  const next = typeof force === 'boolean' ? force : els.shellMenu.hidden;
+  if (!next) {
+    els.shellMenu.hidden = true;
+    return;
+  }
+  els.shellMenu.innerHTML = '';
+  for (const s of availableShells) {
+    const item = document.createElement('div');
+    item.className = 'shell-menu-item';
+    item.textContent = s.label;
+    if (!s.available) item.classList.add('disabled');
+    if (s.id === proj.defaultShell) item.classList.add('active');
+    if (s.available) {
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setProjectDefaultShell(s.id);
+        toggleShellMenu(false);
+      });
+    } else {
+      item.addEventListener('click', (e) => e.stopPropagation());
+    }
+    els.shellMenu.appendChild(item);
+  }
+  els.shellMenu.hidden = false;
+}
+
+function setProjectDefaultShell(shellId) {
+  const proj = activeProject();
+  if (!proj) return;
+  if (proj.defaultShell === shellId) return;
+  proj.defaultShell = shellId;
+  save();
+  renderShellPicker();
 }
 
 function renderProjects() {
@@ -217,7 +282,7 @@ function mountTerminal(tab, project) {
   api.pty
     .spawn({
       id: tab.id,
-      shell: tab.layout.shell || null,
+      shellId: tab.layout.shell || project.defaultShell || null,
       cwd: tab.layout.cwd || project.folder || null,
       env: {},
       cols: term.cols,
@@ -273,6 +338,7 @@ async function addProject() {
     id: uid(),
     name: name.trim() || '새 프로젝트',
     folder: folder || null,
+    defaultShell: firstAvailableShellId(),
     tabs: [],
     activeTabId: null,
   };
@@ -335,7 +401,7 @@ function addTab(projectId) {
     layout: {
       id: uid(),
       cwd: proj.folder || null,
-      shell: null,
+      shell: proj.defaultShell || null,
     },
   };
   tab.activePaneId = tab.layout.id;
@@ -409,17 +475,27 @@ els.addProjectBtn.addEventListener('click', addProject);
 els.emptyAddBtn.addEventListener('click', addProject);
 els.addTabBtn.addEventListener('click', () => addTab());
 els.addFirstTabBtn.addEventListener('click', () => addTab());
+els.shellPickerBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  toggleShellMenu();
+});
+document.addEventListener('click', () => toggleShellMenu(false));
 
 (async function bootstrap() {
+  try {
+    availableShells = (await api.pty.listShells()) || [];
+  } catch (e) {
+    console.error('failed to list shells', e);
+    availableShells = [];
+  }
   try {
     const saved = await api.state.get();
     state.projects = (saved.projects || []).map((p) => ({
       id: p.id || uid(),
       name: p.name || '프로젝트',
       folder: p.folder || null,
-      tabs: Array.isArray(p.tabs)
-        ? p.tabs.map((t) => normalizeTab(t, p.folder))
-        : [],
+      defaultShell: validatedShell(p.defaultShell),
+      tabs: Array.isArray(p.tabs) ? p.tabs.map((t) => normalizeTab(t, p.folder)) : [],
       activeTabId: p.activeTabId || null,
     }));
     for (const p of state.projects) {
@@ -434,6 +510,13 @@ els.addFirstTabBtn.addEventListener('click', () => addTab());
   }
   render();
 })();
+
+function validatedShell(id) {
+  if (!availableShells.length) return id || null;
+  const found = availableShells.find((s) => s.id === id && s.available);
+  if (found) return id;
+  return firstAvailableShellId();
+}
 
 function normalizeTab(t, projectFolder) {
   const layout = t.layout || {};
