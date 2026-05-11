@@ -1,0 +1,24 @@
+{
+  "name": "muti-cli",
+  "version": "0.1.0",
+  "description": "Multi-CLI desktop terminal — M1 app skeleton",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^30.0.9"
+  },
+  "build": {
+    "appId": "com.muticli.app",
+    "productName": "Muti CLI",
+    "asar": true,
+    "files": [
+      "src/**/*",
+      "package.json"
+    ]
+  }
+}
