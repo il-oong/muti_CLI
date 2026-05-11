@@ -10,10 +10,28 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <main id="app" class="placeholder">
-      <h1>Muti CLI</h1>
-      <p id="status">Loading...</p>
-    </main>
+    <div id="app">
+      <aside id="sidebar">
+        <div class="sidebar-header">
+          <span class="brand">Muti CLI</span>
+          <button id="addProjectBtn" class="icon-btn" type="button" title="새 프로젝트">＋</button>
+        </div>
+        <ul id="projectList" class="project-list"></ul>
+      </aside>
+      <main id="workspace">
+        <div id="emptyState" class="empty-state" hidden>
+          <p>프로젝트가 없습니다</p>
+          <button id="emptyAddBtn" class="cta-btn" type="button">＋ 새 프로젝트 만들기</button>
+        </div>
+        <div id="projectView" class="project-view" hidden>
+          <h2 id="projectViewName"></h2>
+          <p id="projectViewFolder" class="muted"></p>
+          <p class="muted">터미널은 다음 마일스톤(M3)에서 추가됩니다.</p>
+        </div>
+      </main>
+    </div>
+
+    <script src="modal.js"></script>
     <script src="renderer.js"></script>
   </body>
 </html>
