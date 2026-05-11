@@ -36,6 +36,9 @@
           <div id="tabbar" class="tabbar">
             <ul id="tabList" class="tab-list"></ul>
             <button id="addTabBtn" class="icon-btn" type="button" title="새 터미널 탭">＋</button>
+            <span class="tabbar-sep"></span>
+            <button id="splitHBtn" class="icon-btn" type="button" title="좌우 분할">⊟▢</button>
+            <button id="splitVBtn" class="icon-btn" type="button" title="상하 분할">⊟▭</button>
           </div>
           <div id="terminals" class="terminals"></div>
           <div id="noTabs" class="empty-state inset" hidden>
@@ -49,6 +52,7 @@
     <script src="../../node_modules/xterm/lib/xterm.js"></script>
     <script src="../../node_modules/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
     <script src="modal.js"></script>
+    <script src="layout.js"></script>
     <script src="renderer.js"></script>
   </body>
 </html>

@@ -2,6 +2,7 @@
 
 const api = window.api;
 const ui = window.ui;
+const lay = window.layout;
 const { Terminal } = window;
 const FitAddon = window.FitAddon && window.FitAddon.FitAddon;
 
@@ -13,6 +14,8 @@ const els = {
   projectArea: document.getElementById('projectArea'),
   tabList: document.getElementById('tabList'),
   addTabBtn: document.getElementById('addTabBtn'),
+  splitHBtn: document.getElementById('splitHBtn'),
+  splitVBtn: document.getElementById('splitVBtn'),
   terminals: document.getElementById('terminals'),
   noTabs: document.getElementById('noTabs'),
   addFirstTabBtn: document.getElementById('addFirstTabBtn'),
@@ -28,6 +31,7 @@ const state = {
 };
 
 const liveTerms = new Map();
+const tabRoots = new Map();
 let availableShells = [];
 
 function uid() {
@@ -190,7 +194,7 @@ function renderProjectArea() {
   els.emptyState.hidden = true;
   els.projectArea.hidden = false;
   renderTabs(proj);
-  showActiveTerminal(proj);
+  renderTerminals(proj);
 }
 
 function renderTabs(project) {
@@ -223,43 +227,142 @@ function renderTabs(project) {
   }
 }
 
-function showActiveTerminal(project) {
-  const panes = els.terminals.querySelectorAll('.term-pane');
-  panes.forEach((p) => p.classList.remove('active'));
-
+function renderTerminals(project) {
   if (!project.tabs.length) {
     els.noTabs.hidden = false;
     els.terminals.hidden = true;
+    for (const root of tabRoots.values()) root.style.display = 'none';
     return;
   }
   els.noTabs.hidden = true;
   els.terminals.hidden = false;
 
+  for (const [tabId, root] of tabRoots.entries()) {
+    root.style.display = tabId === project.activeTabId ? 'block' : 'none';
+  }
+
   const tab = activeTab(project);
   if (!tab) return;
-  let pane = els.terminals.querySelector(`.term-pane[data-id="${tab.id}"]`);
-  if (!pane) {
-    pane = mountTerminal(tab, project);
+
+  let root = tabRoots.get(tab.id);
+  if (!root) {
+    root = document.createElement('div');
+    root.className = 'tab-root';
+    root.dataset.tabId = tab.id;
+    els.terminals.appendChild(root);
+    tabRoots.set(tab.id, root);
   }
-  pane.classList.add('active');
-  const live = liveTerms.get(tab.id);
-  if (live) {
+  root.style.display = 'block';
+  root.replaceChildren(buildLayoutEl(tab.layout, tab, project));
+
+  refitTabPanes(tab);
+  const live = liveTerms.get(tab.activePaneId);
+  if (live) requestAnimationFrame(() => live.term.focus());
+}
+
+function buildLayoutEl(node, tab, project) {
+  if (lay.isSplit(node)) {
+    const el = document.createElement('div');
+    el.className = `split split-${node.dir}`;
+
+    const aEl = document.createElement('div');
+    aEl.className = 'split-child';
+    aEl.style.flex = `${node.ratio} 1 0`;
+    aEl.appendChild(buildLayoutEl(node.a, tab, project));
+
+    const splitter = document.createElement('div');
+    splitter.className = `splitter splitter-${node.dir}`;
+    attachSplitterDrag(splitter, node, el, aEl, () => {
+      const bEl = aEl.nextElementSibling && aEl.nextElementSibling.nextElementSibling;
+      if (bEl) bEl.style.flex = `${1 - node.ratio} 1 0`;
+      aEl.style.flex = `${node.ratio} 1 0`;
+    });
+
+    const bEl = document.createElement('div');
+    bEl.className = 'split-child';
+    bEl.style.flex = `${1 - node.ratio} 1 0`;
+    bEl.appendChild(buildLayoutEl(node.b, tab, project));
+
+    el.append(aEl, splitter, bEl);
+    return el;
+  }
+
+  return ensurePaneEl(node, tab, project);
+}
+
+function attachSplitterDrag(splitter, splitNode, containerEl, _aEl, applyFlex) {
+  splitter.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    const rect = containerEl.getBoundingClientRect();
+    const isHoriz = splitNode.dir === 'h';
+    function onMove(ev) {
+      const pos = isHoriz ? ev.clientX - rect.left : ev.clientY - rect.top;
+      const size = isHoriz ? rect.width : rect.height;
+      const raw = pos / size;
+      splitNode.ratio = lay.clampRatio(raw);
+      applyFlex();
+    }
+    function onUp() {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      save();
+      const tab = activeTabOfActiveProject();
+      if (tab) refitTabPanes(tab);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+}
+
+function activeTabOfActiveProject() {
+  const proj = activeProject();
+  return proj ? activeTab(proj) : null;
+}
+
+function refitTabPanes(tab) {
+  lay.forEachPane(tab.layout, (pane) => {
+    const live = liveTerms.get(pane.id);
+    if (!live) return;
     requestAnimationFrame(() => {
       try {
         live.fit.fit();
       } catch (_) {
         /* ignore */
       }
-      live.term.focus();
     });
-  }
+  });
 }
 
-function mountTerminal(tab, project) {
-  const pane = document.createElement('div');
-  pane.className = 'term-pane';
-  pane.dataset.id = tab.id;
-  els.terminals.appendChild(pane);
+function ensurePaneEl(pane, tab, project) {
+  let live = liveTerms.get(pane.id);
+  if (!live) {
+    live = mountPane(pane, tab, project);
+  }
+  live.paneEl.classList.toggle('active-pane', tab.activePaneId === pane.id);
+  return live.paneEl;
+}
+
+function mountPane(pane, tab, project) {
+  const paneEl = document.createElement('div');
+  paneEl.className = 'term-pane';
+  paneEl.dataset.paneId = pane.id;
+
+  const header = document.createElement('div');
+  header.className = 'pane-header';
+  const closeBtn = document.createElement('span');
+  closeBtn.className = 'pane-close';
+  closeBtn.textContent = '×';
+  closeBtn.title = '패널 닫기';
+  closeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closePane(tab.id, pane.id);
+  });
+  header.appendChild(closeBtn);
+
+  const termWrap = document.createElement('div');
+  termWrap.className = 'pane-term';
+
+  paneEl.append(header, termWrap);
 
   const term = new Terminal({
     fontFamily: 'Cascadia Mono, Consolas, "Courier New", monospace',
@@ -270,7 +373,7 @@ function mountTerminal(tab, project) {
   });
   const fit = new FitAddon();
   term.loadAddon(fit);
-  term.open(pane);
+  term.open(termWrap);
   requestAnimationFrame(() => {
     try {
       fit.fit();
@@ -281,23 +384,24 @@ function mountTerminal(tab, project) {
 
   api.pty
     .spawn({
-      id: tab.id,
-      shellId: tab.layout.shell || project.defaultShell || null,
-      cwd: tab.layout.cwd || project.folder || null,
+      id: pane.id,
+      shellId: pane.shell || project.defaultShell || null,
+      cwd: pane.cwd || project.folder || null,
       env: {},
       cols: term.cols,
       rows: term.rows,
     })
     .then((info) => {
-      tab.layout.cwd = tab.layout.cwd || info.cwd;
+      pane.cwd = pane.cwd || info.cwd;
       save();
     })
     .catch((e) => {
       term.write(`\r\n[muti-cli] failed to spawn shell: ${e && e.message ? e.message : e}\r\n`);
     });
 
-  term.onData((data) => api.pty.write(tab.id, data));
-  term.onResize(({ cols, rows }) => api.pty.resize(tab.id, cols, rows));
+  term.onData((data) => api.pty.write(pane.id, data));
+  term.onResize(({ cols, rows }) => api.pty.resize(pane.id, cols, rows));
+  termWrap.addEventListener('mousedown', () => focusPane(tab.id, pane.id), true);
 
   const ro = new ResizeObserver(() => {
     try {
@@ -306,14 +410,15 @@ function mountTerminal(tab, project) {
       /* ignore */
     }
   });
-  ro.observe(pane);
+  ro.observe(paneEl);
 
-  liveTerms.set(tab.id, { term, fit, pane, ro });
-  return pane;
+  const live = { term, fit, paneEl, termWrap, ro };
+  liveTerms.set(pane.id, live);
+  return live;
 }
 
-function unmountTerminal(tabId) {
-  const live = liveTerms.get(tabId);
+function disposePane(paneId) {
+  const live = liveTerms.get(paneId);
   if (!live) return;
   try {
     live.ro.disconnect();
@@ -325,9 +430,63 @@ function unmountTerminal(tabId) {
   } catch (_) {
     /* ignore */
   }
-  if (live.pane && live.pane.parentNode) live.pane.parentNode.removeChild(live.pane);
-  liveTerms.delete(tabId);
-  api.pty.kill(tabId);
+  if (live.paneEl && live.paneEl.parentNode) live.paneEl.parentNode.removeChild(live.paneEl);
+  liveTerms.delete(paneId);
+  api.pty.kill(paneId);
+}
+
+function focusPane(tabId, paneId) {
+  const proj = activeProject();
+  if (!proj) return;
+  const tab = proj.tabs.find((t) => t.id === tabId);
+  if (!tab) return;
+  if (tab.activePaneId === paneId) return;
+  tab.activePaneId = paneId;
+  save();
+  for (const p of lay.listPanes(tab.layout)) {
+    const live = liveTerms.get(p.id);
+    if (live) live.paneEl.classList.toggle('active-pane', p.id === paneId);
+  }
+}
+
+function splitActivePane(dir) {
+  const proj = activeProject();
+  if (!proj) return;
+  const tab = activeTab(proj);
+  if (!tab) return;
+  const paneCount = lay.countPanes(tab.layout);
+  if (paneCount >= lay.MAX_PANES) return;
+
+  const newPane = {
+    id: uid(),
+    cwd: proj.folder || null,
+    shell: proj.defaultShell || null,
+  };
+  const result = lay.splitPane(tab.layout, tab.activePaneId, dir, newPane);
+  if (!result.added) return;
+  tab.layout = result.layout;
+  tab.activePaneId = newPane.id;
+  save();
+  renderTerminals(proj);
+}
+
+function closePane(tabId, paneId) {
+  const proj = activeProject();
+  if (!proj) return;
+  const tab = proj.tabs.find((t) => t.id === tabId);
+  if (!tab) return;
+  const next = lay.removePane(tab.layout, paneId);
+  disposePane(paneId);
+  if (next == null) {
+    closeTab(tab.id);
+    return;
+  }
+  tab.layout = next;
+  if (!lay.findPane(tab.layout, tab.activePaneId)) {
+    tab.activePaneId = lay.listPanes(tab.layout)[0].id;
+  }
+  save();
+  renderTerminals(proj);
 }
 
 async function addProject() {
@@ -376,7 +535,12 @@ async function deleteProject(id) {
   if (!p) return;
   const ok = await ui.confirmAction(`'${p.name}' 프로젝트를 삭제할까요?`, { danger: true });
   if (!ok) return;
-  for (const t of p.tabs) unmountTerminal(t.id);
+  for (const t of p.tabs) {
+    for (const pane of lay.listPanes(t.layout)) disposePane(pane.id);
+    const root = tabRoots.get(t.id);
+    if (root && root.parentNode) root.parentNode.removeChild(root);
+    tabRoots.delete(t.id);
+  }
   state.projects = state.projects.filter((x) => x.id !== id);
   if (state.activeProjectId === id) {
     state.activeProjectId = state.projects[0] ? state.projects[0].id : null;
@@ -395,16 +559,17 @@ function selectProject(id) {
 function addTab(projectId) {
   const proj = projectId ? findProject(projectId) : activeProject();
   if (!proj) return;
+  const paneId = uid();
   const tab = {
     id: uid(),
     title: `터미널 ${proj.tabs.length + 1}`,
     layout: {
-      id: uid(),
+      id: paneId,
       cwd: proj.folder || null,
       shell: proj.defaultShell || null,
     },
+    activePaneId: paneId,
   };
-  tab.activePaneId = tab.layout.id;
   proj.tabs.push(tab);
   proj.activeTabId = tab.id;
   save();
@@ -417,7 +582,8 @@ function selectTab(tabId) {
   if (proj.activeTabId === tabId) return;
   proj.activeTabId = tabId;
   save();
-  render();
+  renderTabs(proj);
+  renderTerminals(proj);
 }
 
 async function renameTab(tabId) {
@@ -431,13 +597,18 @@ async function renameTab(tabId) {
   if (!trimmed) return;
   t.title = trimmed;
   save();
-  render();
+  renderTabs(proj);
 }
 
 function closeTab(tabId) {
   const proj = activeProject();
   if (!proj) return;
-  unmountTerminal(tabId);
+  const tab = proj.tabs.find((x) => x.id === tabId);
+  if (!tab) return;
+  for (const pane of lay.listPanes(tab.layout)) disposePane(pane.id);
+  const root = tabRoots.get(tabId);
+  if (root && root.parentNode) root.parentNode.removeChild(root);
+  tabRoots.delete(tabId);
   proj.tabs = proj.tabs.filter((t) => t.id !== tabId);
   if (proj.activeTabId === tabId) {
     proj.activeTabId = proj.tabs[proj.tabs.length - 1]
@@ -445,7 +616,8 @@ function closeTab(tabId) {
       : null;
   }
   save();
-  render();
+  renderTabs(proj);
+  renderTerminals(proj);
 }
 
 api.pty.onData(({ id, data }) => {
@@ -475,6 +647,8 @@ els.addProjectBtn.addEventListener('click', addProject);
 els.emptyAddBtn.addEventListener('click', addProject);
 els.addTabBtn.addEventListener('click', () => addTab());
 els.addFirstTabBtn.addEventListener('click', () => addTab());
+els.splitHBtn.addEventListener('click', () => splitActivePane('h'));
+els.splitVBtn.addEventListener('click', () => splitActivePane('v'));
 els.shellPickerBtn.addEventListener('click', (e) => {
   e.stopPropagation();
   toggleShellMenu();
@@ -519,16 +693,37 @@ function validatedShell(id) {
 }
 
 function normalizeTab(t, projectFolder) {
-  const layout = t.layout || {};
-  const paneId = layout.id || uid();
+  const layout = normalizeLayout(t.layout, projectFolder);
+  const firstPane = lay.listPanes(layout)[0];
+  const activePaneId = lay.findPane(layout, t.activePaneId)
+    ? t.activePaneId
+    : firstPane
+    ? firstPane.id
+    : null;
   return {
     id: t.id || uid(),
     title: t.title || '터미널',
-    layout: {
-      id: paneId,
-      cwd: layout.cwd || projectFolder || null,
-      shell: layout.shell || null,
-    },
-    activePaneId: paneId,
+    layout,
+    activePaneId,
+  };
+}
+
+function normalizeLayout(node, projectFolder) {
+  if (!node) {
+    return { id: uid(), cwd: projectFolder || null, shell: null };
+  }
+  if (node.type === 'split') {
+    return {
+      type: 'split',
+      dir: node.dir === 'v' ? 'v' : 'h',
+      ratio: lay.clampRatio(node.ratio),
+      a: normalizeLayout(node.a, projectFolder),
+      b: normalizeLayout(node.b, projectFolder),
+    };
+  }
+  return {
+    id: node.id || uid(),
+    cwd: node.cwd || projectFolder || null,
+    shell: node.shell || null,
   };
 }
