@@ -40,13 +40,49 @@ function backupCorrupt(filePath) {
   }
 }
 
+function recoverFromTmp(filePath) {
+  const tmp = `${filePath}.tmp`;
+  let tmpExists = false;
+  try {
+    tmpExists = fs.existsSync(tmp);
+  } catch (_) {
+    return;
+  }
+  if (!tmpExists) return;
+
+  if (fs.existsSync(filePath)) {
+    try {
+      fs.unlinkSync(tmp);
+    } catch (_) {
+      /* ignore */
+    }
+    return;
+  }
+
+  try {
+    const raw = fs.readFileSync(tmp, 'utf8');
+    JSON.parse(raw);
+    fs.renameSync(tmp, filePath);
+  } catch (_) {
+    try {
+      fs.unlinkSync(tmp);
+    } catch (__) {
+      /* ignore */
+    }
+  }
+}
+
 function createStore(filePath, options = {}) {
   const debounceMs = typeof options.debounceMs === 'number' ? options.debounceMs : 250;
+  const periodicMs = typeof options.periodicMs === 'number' ? options.periodicMs : 5000;
   let cache = null;
   let saveTimer = null;
+  let periodicTimer = null;
+  let dirty = false;
 
   function load() {
     if (cache) return cache;
+    recoverFromTmp(filePath);
     try {
       if (fs.existsSync(filePath)) {
         const raw = fs.readFileSync(filePath, 'utf8');
@@ -61,17 +97,26 @@ function createStore(filePath, options = {}) {
     return cache;
   }
 
+  if (periodicMs > 0) {
+    periodicTimer = setInterval(() => {
+      if (dirty) flush();
+    }, periodicMs);
+    if (typeof periodicTimer.unref === 'function') periodicTimer.unref();
+  }
+
   function getState() {
     return load();
   }
 
   function setState(next) {
     cache = migrate(next);
+    dirty = true;
     scheduleSave();
   }
 
   function patch(partial) {
     cache = migrate({ ...load(), ...partial });
+    dirty = true;
     scheduleSave();
   }
 
@@ -94,9 +139,21 @@ function createStore(filePath, options = {}) {
     const tmp = `${filePath}.tmp`;
     fs.writeFileSync(tmp, JSON.stringify(cache, null, 2), 'utf8');
     fs.renameSync(tmp, filePath);
+    dirty = false;
   }
 
-  return { getState, setState, patch, flush, filePath };
+  function stop() {
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    if (periodicTimer) {
+      clearInterval(periodicTimer);
+      periodicTimer = null;
+    }
+  }
+
+  return { getState, setState, patch, flush, stop, filePath };
 }
 
-module.exports = { createStore, defaultState, migrate, SCHEMA_VERSION };
+module.exports = { createStore, defaultState, migrate, SCHEMA_VERSION, recoverFromTmp };

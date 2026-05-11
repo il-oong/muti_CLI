@@ -97,3 +97,81 @@ test('newer-version file on disk is backed up and default returned', () => {
   const backups = fs.readdirSync(path.dirname(fp)).filter((n) => n.includes('.broken-'));
   assert.ok(backups.length >= 1, 'expected backup of future-version file');
 });
+
+test('orphan .tmp file recovers when main file is missing', () => {
+  const fp = tmpStatePath();
+  const tmp = fp + '.tmp';
+  const payload = {
+    schemaVersion: SCHEMA_VERSION,
+    projects: [{ id: 'recovered' }],
+    activeProjectId: 'recovered',
+    window: { width: 800, height: 600, x: null, y: null, maximized: false },
+  };
+  fs.writeFileSync(tmp, JSON.stringify(payload), 'utf8');
+  assert.equal(fs.existsSync(fp), false);
+
+  const s = createStore(fp);
+  const state = s.getState();
+  assert.equal(state.projects[0].id, 'recovered');
+  assert.equal(fs.existsSync(fp), true);
+  assert.equal(fs.existsSync(tmp), false);
+});
+
+test('orphan .tmp is removed when main file already exists', () => {
+  const fp = tmpStatePath();
+  const tmp = fp + '.tmp';
+  fs.writeFileSync(
+    fp,
+    JSON.stringify({ schemaVersion: SCHEMA_VERSION, projects: [{ id: 'main' }] }),
+    'utf8'
+  );
+  fs.writeFileSync(tmp, '{"schemaVersion":1,"projects":[{"id":"stale"}]}', 'utf8');
+
+  const s = createStore(fp);
+  const state = s.getState();
+  assert.equal(state.projects[0].id, 'main');
+  assert.equal(fs.existsSync(tmp), false);
+});
+
+test('corrupt .tmp with missing main is discarded, defaults returned', () => {
+  const fp = tmpStatePath();
+  const tmp = fp + '.tmp';
+  fs.writeFileSync(tmp, 'not valid json {{{', 'utf8');
+
+  const s = createStore(fp);
+  const state = s.getState();
+  assert.equal(state.schemaVersion, SCHEMA_VERSION);
+  assert.deepEqual(state.projects, []);
+  assert.equal(fs.existsSync(tmp), false);
+});
+
+test('periodic flush writes dirty cache even when debounce is long', async () => {
+  const fp = tmpStatePath();
+  const s = createStore(fp, { debounceMs: 60000, periodicMs: 40 });
+  s.setState({
+    schemaVersion: SCHEMA_VERSION,
+    projects: [{ id: 'periodic' }],
+    activeProjectId: 'periodic',
+    window: { width: 1, height: 1, x: null, y: null, maximized: false },
+  });
+  assert.equal(fs.existsSync(fp), false);
+  await new Promise((r) => setTimeout(r, 120));
+  assert.equal(fs.existsSync(fp), true);
+  const raw = JSON.parse(fs.readFileSync(fp, 'utf8'));
+  assert.equal(raw.projects[0].id, 'periodic');
+  s.stop();
+});
+
+test('stop cancels pending debounce and periodic timers', async () => {
+  const fp = tmpStatePath();
+  const s = createStore(fp, { debounceMs: 50, periodicMs: 50 });
+  s.setState({
+    schemaVersion: SCHEMA_VERSION,
+    projects: [{ id: 'pending' }],
+    activeProjectId: null,
+    window: { width: 1, height: 1, x: null, y: null, maximized: false },
+  });
+  s.stop();
+  await new Promise((r) => setTimeout(r, 120));
+  assert.equal(fs.existsSync(fp), false);
+});
