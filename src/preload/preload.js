@@ -7,4 +7,7 @@ contextBridge.exposeInMainWorld('api', {
     get: () => ipcRenderer.invoke('state:get'),
     set: (next) => ipcRenderer.invoke('state:set', next),
   },
+  dialog: {
+    pickFolder: () => ipcRenderer.invoke('dialog:pickFolder'),
+  },
 });

@@ -1,7 +1,12 @@
 :root {
   --bg-app: #1e1e1e;
+  --bg-sidebar: #181818;
+  --bg-elev: #2d2d2d;
   --fg: #d4d4d4;
   --fg-dim: #888;
+  --accent: #094771;
+  --border: #2a2a2a;
+  --danger: #c14b4b;
 }
 
 * {
@@ -20,23 +25,252 @@ body {
   overflow: hidden;
 }
 
-.placeholder {
+#app {
+  display: grid;
+  grid-template-columns: 240px 1fr;
   height: 100vh;
+}
+
+#sidebar {
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.icon-btn {
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.icon-btn:hover {
+  background: var(--bg-elev);
+}
+
+.project-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.project-list li {
+  padding: 8px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.project-list li:hover {
+  background: #232323;
+}
+
+.project-list li.active {
+  background: var(--accent);
+}
+
+.project-list .pname {
+  font-weight: 500;
+}
+
+.project-list .ppath {
+  font-size: 11px;
+  color: var(--fg-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+
+.project-list li.active .ppath {
+  color: #c6d8e6;
+}
+
+.project-list .row-actions {
+  display: none;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.project-list li.active .row-actions {
+  display: flex;
+}
+
+.project-list .row-actions button {
+  font-size: 11px;
+  padding: 2px 6px;
+  background: var(--bg-elev);
+  color: var(--fg);
+  border: 1px solid #444;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.project-list .row-actions button:hover {
+  background: #3a3a3a;
+}
+
+.project-list .row-actions button.danger {
+  border-color: var(--danger);
+  color: #ffb4b4;
+}
+
+#workspace {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.empty-state {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 14px;
+  color: var(--fg-dim);
+}
+
+.cta-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.cta-btn:hover {
+  filter: brightness(1.15);
+}
+
+.project-view {
+  padding: 24px 28px;
+}
+
+.project-view h2 {
+  margin: 0 0 4px 0;
+  font-weight: 500;
+}
+
+.muted {
+  color: var(--fg-dim);
+  margin: 0 0 6px 0;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal-overlay[hidden] {
+  display: none;
+}
+
+.modal-card {
+  background: #252526;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 18px 20px;
+  min-width: 320px;
+  max-width: 480px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.modal-title {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.modal-title[hidden],
+.modal-message[hidden],
+.modal-input[hidden] {
+  display: none;
+}
+
+.modal-message {
+  margin: 0 0 12px 0;
+  color: var(--fg);
+  white-space: pre-wrap;
+}
+
+.modal-input {
+  width: 100%;
+  background: var(--bg-app);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font: inherit;
+  margin-bottom: 12px;
+}
+
+.modal-input:focus {
+  outline: 1px solid var(--accent);
+  border-color: var(--accent);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
   gap: 8px;
 }
 
-.placeholder h1 {
-  font-size: 28px;
-  font-weight: 500;
-  margin: 0;
-  letter-spacing: 0.5px;
+.modal-actions button {
+  background: var(--bg-elev);
+  color: var(--fg);
+  border: 1px solid #444;
+  border-radius: 4px;
+  padding: 6px 14px;
+  cursor: pointer;
+  font: inherit;
 }
 
-.placeholder p {
-  margin: 0;
-  color: var(--fg-dim);
+.modal-actions button:hover {
+  background: #3a3a3a;
+}
+
+.modal-actions .modal-ok {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.modal-actions .modal-ok:hover {
+  filter: brightness(1.15);
+}
+
+.modal-actions .modal-ok.danger {
+  background: var(--danger);
+  border-color: var(--danger);
 }

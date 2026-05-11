@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const { createStore } = require('./store');
 
@@ -74,4 +74,13 @@ ipcMain.handle('state:get', () => store.getState());
 ipcMain.handle('state:set', (_event, next) => {
   store.setState(next);
   return true;
+});
+
+ipcMain.handle('dialog:pickFolder', async () => {
+  const win = mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined;
+  const res = await dialog.showOpenDialog(win, {
+    properties: ['openDirectory', 'createDirectory'],
+  });
+  if (res.canceled || res.filePaths.length === 0) return null;
+  return res.filePaths[0];
 });
