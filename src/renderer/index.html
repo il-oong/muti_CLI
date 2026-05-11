@@ -18,6 +18,14 @@
           <button id="addProjectBtn" class="icon-btn" type="button" title="새 프로젝트">＋</button>
         </div>
         <ul id="projectList" class="project-list"></ul>
+        <div id="shellPicker" class="shell-picker" hidden>
+          <span class="shell-label">셸:</span>
+          <button id="shellPickerBtn" class="shell-btn" type="button">
+            <span id="shellPickerText">—</span>
+            <span class="caret">▾</span>
+          </button>
+          <div id="shellMenu" class="shell-menu" hidden role="menu"></div>
+        </div>
       </aside>
       <main id="workspace">
         <div id="emptyState" class="empty-state" hidden>

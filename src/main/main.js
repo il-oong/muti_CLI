@@ -4,6 +4,7 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const { createStore } = require('./store');
 const ptyMgr = require('./pty-manager');
+const shells = require('./shells');
 
 let store = null;
 let mainWindow = null;
@@ -89,6 +90,8 @@ ipcMain.handle('dialog:pickFolder', async () => {
 });
 
 ipcMain.handle('pty:defaultShell', () => ptyMgr.defaultShell());
+
+ipcMain.handle('pty:listShells', () => shells.listShells());
 
 ipcMain.handle('pty:spawn', (event, opts) => {
   const wc = event.sender;
