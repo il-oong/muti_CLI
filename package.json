@@ -1,16 +1,23 @@
 {
   "name": "muti-cli",
   "version": "0.1.0",
-  "description": "Multi-CLI desktop terminal — M3 tabs + xterm + node-pty",
+  "description": "Multi-CLI desktop terminal — project-based tab groups with autosave",
   "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node --test"
+    "test": "node --test",
+    "postinstall": "electron-builder install-app-deps",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux"
   },
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^30.0.9"
+    "electron": "^30.0.9",
+    "electron-builder": "^24.13.3"
   },
   "dependencies": {
     "node-pty": "^1.0.0",
@@ -29,6 +36,26 @@
       "package.json",
       "node_modules/xterm/**/*",
       "node_modules/xterm-addon-fit/**/*"
-    ]
+    ],
+    "win": {
+      "target": ["nsis"],
+      "artifactName": "MutiCLI-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Muti CLI"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "category": "public.app-category.developer-tools"
+    },
+    "linux": {
+      "target": ["AppImage"],
+      "category": "Development"
+    }
   }
 }
